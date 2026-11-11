@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Can you come to the ___? · 친구 초대하기</title>
+  <title>What's your favorite subject? · 좋아하는 과목 말하기</title>
   <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="app-header">
-    <div class="balloon balloon1">🎈</div>
-    <div class="balloon balloon2">🎈</div>
+    <div class="balloon balloon1">📚</div>
+    <div class="balloon balloon2">✏️</div>
     <div class="confetti"></div>
-    <h1>🎉 Can you come to the ___?</h1>
-    <p class="subtitle">내가 선택한 행사에 친구 초대하기 · 초대하고, 대답하고, 약속을 잡아 봐요!</p>
+    <h1>📚 What's your favorite subject?</h1>
+    <p class="subtitle">가장 좋아하는 과목과 잘하는 것 말하기 · 묻고, 대답하고, 친구와 이야기해 봐요!</p>
   </header>
 
   <nav class="tabs">
-    <button class="tab-btn active" data-tab="suggest">🎉 초대하기</button>
-    <button class="tab-btn" data-tab="answer">💬 대답하기</button>
-    <button class="tab-btn" data-tab="meet">📍 약속 잡기</button>
-    <button class="tab-btn" data-tab="build">🎒 내 행사 만들기 <span id="set-count" class="tab-count">0/3</span></button>
+    <button class="tab-btn active" data-tab="subject">📚 좋아하는 과목</button>
+    <button class="tab-btn" data-tab="good">💪 잘하는 것</button>
+    <button class="tab-btn" data-tab="talk">💬 대화 완성</button>
+    <button class="tab-btn" data-tab="build">🎒 나와 친구 카드 <span id="set-count" class="tab-count">0/3</span></button>
     <button class="tab-btn" data-tab="practice">🎤 연습 · 짝 활동</button>
   </nav>
 
@@ -32,145 +32,146 @@
   </div>
 
   <main>
-    <!-- ===== 초대하기 (Can you come to ~?) ===== -->
-    <section id="tab-suggest" class="tab-panel active">
+    <!-- ===== 📚 좋아하는 과목 (What's your favorite subject? / My favorite subject is ~.) ===== -->
+    <section id="tab-subject" class="tab-panel active">
       <div class="section-block">
-        <h2>친구 초대하기 · Can you come to (the) ___? <span class="count">54개</span></h2>
+        <h2>❓ 묻기 · What's your favorite subject?</h2>
+        <div class="fill-box question-box">
+          <div class="fill-pattern" id="question-line"></div>
+          <div class="fill-ko">네가 가장 좋아하는 과목은 뭐니?</div>
+          <div class="fill-actions"><button class="btn primary" id="question-speak">🔊 질문 듣기</button></div>
+        </div>
+      </div>
+      <div class="section-block">
+        <h2>🙋 대답하기 · My favorite subject is ___. <span class="count">10과목 × 3단계 = 30개</span></h2>
         <div class="level-switch">
           <button class="level-btn active" data-level="beginner">초급</button>
           <button class="level-btn" data-level="intermediate">중급</button>
           <button class="level-btn" data-level="advanced">고급</button>
         </div>
-        <div class="cat-switch">
+        <div class="cat-switch" id="subject-cat-switch">
           <button class="cat-btn active" data-cat="all">전체</button>
-          <button class="cat-btn" data-cat="book">📘 교과서 행사</button>
-          <button class="cat-btn" data-cat="fun">🎈 재미있는 행사</button>
+          <button class="cat-btn" data-cat="study">📘 공부 과목</button>
+          <button class="cat-btn" data-cat="arts">🎨 예체능·실과</button>
         </div>
-        <p class="hint">난이도와 행사 종류를 고르면 <b>교과서 행사 6개</b>(생일 파티·태권도 공연·레이저 쇼·책 축제·영화 축제·요리 교실 파티)와 <b>재미있는 행사 12개</b>(케이팝 콘서트·슬라임 축제·마술 쇼·불꽃 축제 등)가 나와요. <b>my birthday party</b>처럼 <b>my</b>가 붙는 행사는 <b>the</b>를 쓰지 않아요! 단어를 누르면 뜻과 발음을 알 수 있어요. <b>📋 워크시트 1번</b>: 여기와 <b>대답하기 · 약속 잡기</b>에서 표현을 듣고 따라 말한 뒤, 마음에 드는 행사를 <b>🎒 내 행사 만들기</b>에서 골라요.</p>
-        <div id="suggestion-grid" class="card-grid five"></div>
+        <p class="hint">과목 10개: <b>Korean</b>(국어) · <b>English</b>(영어) · <b>math</b>(수학) · <b>science</b>(과학) · <b>social studies</b>(사회) · <b>history</b>(역사) · <b>music</b>(음악) · <b>art</b>(미술) · <b>P.E.</b>(체육) · <b>practical arts</b>(실과). <b>Korean</b>과 <b>English</b>는 항상 <b>대문자</b>로 시작해요! 초급은 기본 문장, 중급은 좋아하는 이유, 고급은 <b>I'm good at ___.</b>까지 이어서 말해요. 단어를 누르면 뜻과 발음을 알 수 있어요.</p>
+        <div id="subject-grid" class="card-grid five"></div>
       </div>
     </section>
 
-    <!-- ===== 대답하기 (승낙 · 거절) ===== -->
-    <section id="tab-answer" class="tab-panel">
-      <p class="hint" style="margin-bottom:18px">💡 <b>Can you come to the ___?</b> 라고 초대를 받으면 <b>갈 수 있을 때</b>와 <b>못 갈 때</b> 이렇게 대답해요. 못 갈 때는 <b>Sorry, but I can't.</b> 뒤에 <b>I have a ___.</b> 로 이유를 말해요.</p>
+    <!-- ===== 💪 잘하는 것 (I'm good at ~.) ===== -->
+    <section id="tab-good" class="tab-panel">
+      <p class="hint" style="margin-bottom:18px">💡 내가 <b>잘하는 것</b>은 <b>I'm good at ___.</b> 으로 말해요. <b>at</b> 뒤에는 <b>singing</b>, <b>dancing</b>처럼 <b>-ing</b>가 붙은 말이나 <b>math</b> 같은 과목 이름이 와요.</p>
       <div class="section-block">
-        <h2>⭕ 승낙 (Yes) <span class="count">5개</span></h2>
-        <p class="hint">갈 수 있을 때 대답해요. 교과서 표현은 <b>Of course.</b> 예요.</p>
-        <div id="accept-grid" class="card-grid five"></div>
+        <h2>💪 I'm good at ___. <span class="count">10개</span></h2>
+        <div id="skill-grid" class="card-grid five"></div>
       </div>
       <div class="section-block">
-        <h2>❌ 거절 (No) <span class="count">10개</span></h2>
-        <p class="hint">못 갈 때는 미안하다고 말한 뒤 <b>이유</b>를 골라 빈칸을 채워요.</p>
-        <div class="fill-box" id="refuse-fill">
-          <div class="fill-pattern">Sorry, but I can't. I have a <span class="blank" id="refuse-blank">________</span>.</div>
-          <div class="fill-ko" id="refuse-ko">미안하지만 못 가. 나 ________(이)가 있어.</div>
-          <div class="chip-group-title">📌 이유 (I have a ___.)</div>
-          <div id="refuse-chips" class="chip-row wrap"></div>
-          <div class="fill-actions" id="refuse-actions"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== 약속 잡기 (Please come to ~ at ~.) ===== -->
-    <section id="tab-meet" class="tab-panel">
-      <p class="hint" style="margin-bottom:18px">💡 친구가 <b>Of course.</b> 라고 승낙하면, <b>Please come to (장소) at (시간).</b> 으로 <b>어디서 몇 시에</b> 만날지 말해요.</p>
-      <div class="section-block">
-        <h2>🤝 약속 잡기 <span class="count">장소 10 · 시간 10</span></h2>
-        <p class="hint">장소와 시간을 골라 빈칸을 채우면 문장이 완성돼요. 완성된 문장을 들어 보세요.</p>
-        <div class="fill-box" id="meet-fill">
-          <div class="fill-pattern">Please come to <span class="blank" id="meet-place-blank">________</span> at <span class="blank" id="meet-time-blank">________</span>.</div>
-          <div class="fill-ko" id="meet-ko">________에 ________(으)로 와 줘.</div>
-          <div class="chip-group-title">📍 장소 (Where)</div>
-          <div id="meet-place-chips" class="chip-row wrap"></div>
-          <div class="chip-group-title">⏰ 시간 (What time)</div>
-          <div id="meet-time-chips" class="chip-row wrap"></div>
-          <div class="fill-actions" id="meet-actions"></div>
+        <h2>✍️ 빈칸 채우기</h2>
+        <p class="hint">잘하는 것을 골라 빈칸을 채우고 문장을 들어 보세요.</p>
+        <div class="fill-box" id="good-fill">
+          <div class="fill-pattern">I'm good at <span class="blank" id="good-blank">________</span>.</div>
+          <div class="fill-ko" id="good-ko">나는 ________을(를) 잘해.</div>
+          <div class="chip-group-title">💪 잘하는 것 (I'm good at ___.)</div>
+          <div id="good-chips" class="chip-row wrap"></div>
+          <div class="fill-actions" id="good-actions"></div>
         </div>
       </div>
     </section>
 
-    <!-- ===== 🎒 내 행사 만들기 (3세트 + 내 대답) ===== -->
+    <!-- ===== 💬 대화 완성 ===== -->
+    <section id="tab-talk" class="tab-panel">
+      <p class="hint" style="margin-bottom:18px">💡 친구가 <b>What's your favorite subject?</b> 라고 물으면 <b>My favorite subject is ___.</b> 로 대답하고, <b>I'm good at ___.</b> 으로 잘하는 것도 말해 봐요.</p>
+      <div class="section-block">
+        <h2>💬 대화 완성하기 <span class="count">과목 10 · 잘하는 것 10</span></h2>
+        <p class="hint">과목과 잘하는 것을 골라 빈칸을 채우면 대화가 완성돼요. 완성된 대화를 들어 보세요.</p>
+        <div class="fill-box" id="talk-fill">
+          <div class="br-dialogue">
+            <div class="br-line line-a">
+              <span class="br-who">🙋 A</span>
+              <div class="br-bubble">
+                <div class="br-sentence">What's your favorite subject?</div>
+                <div class="br-ko">네가 가장 좋아하는 과목은 뭐니?</div>
+              </div>
+            </div>
+            <div class="br-line line-b">
+              <span class="br-who">🙆 B</span>
+              <div class="br-bubble">
+                <div class="br-sentence">My favorite subject is <span class="blank" id="talk-subject-blank">________</span>.</div>
+                <div class="br-sentence">I'm good at <span class="blank" id="talk-skill-blank">________</span>.</div>
+                <div class="br-ko" id="talk-ko">내가 가장 좋아하는 과목은 ________. 나는 ________을(를) 잘해.</div>
+              </div>
+            </div>
+          </div>
+          <div class="chip-group-title">📚 과목 (My favorite subject is ___.)</div>
+          <div id="talk-subject-chips" class="chip-row wrap"></div>
+          <div class="chip-group-title">💪 잘하는 것 (I'm good at ___.)</div>
+          <div id="talk-skill-chips" class="chip-row wrap"></div>
+          <div class="fill-actions" id="talk-actions"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 🎒 나와 친구 카드 (3장) ===== -->
     <section id="tab-build" class="tab-panel">
       <div class="section-block">
-        <h2>🎒 내 행사 만들기 · 내가 선택한 행사 <span class="count">3개</span></h2>
-        <p class="hint"><b>📋 워크시트 2번</b>: 친구를 초대할 <b>내가 선택한 행사 3개</b>를 만들어요. 행사마다 <b>행사 1개</b>와 약속 <b>장소·시간 1개</b>를 고르면 돼요. 다 만들면 아래 <b>📝 워크시트에 적기</b> 표를 보고 영어로 옮겨 적고, <b>🎤 연습 · 짝 활동</b>에서 말해 봐요.</p>
+        <h2>🎒 나와 친구 카드 만들기 <span class="count">3장</span></h2>
+        <p class="hint"><b>🙋 나</b> 카드에는 <b>내가 가장 좋아하는 과목</b>과 <b>내가 잘하는 것</b>을 골라요. <b>👦 친구 1 · 👧 친구 2</b> 카드에는 친구에게 <b>What's your favorite subject?</b> 라고 묻고 들은 대답을 골라 기록해요. 다 만들면 아래 <b>📝 활동지에 적기</b> 표를 보고 영어로 옮겨 적고, <b>🎤 연습 · 짝 활동</b>에서 말해 봐요.</p>
 
         <div class="set-tabs" id="set-tabs">
-          <button class="set-tab active" data-set="0">행사 1</button>
-          <button class="set-tab" data-set="1">행사 2</button>
-          <button class="set-tab" data-set="2">행사 3</button>
+          <button class="set-tab active" data-set="0">🙋 나</button>
+          <button class="set-tab" data-set="1">👦 친구 1</button>
+          <button class="set-tab" data-set="2">👧 친구 2</button>
         </div>
 
         <div class="fill-box dialog-box">
-          <div class="dlg-mode">
-            <span class="dlg-mode-label">친구의 대답</span>
-            <div class="mode-switch" id="set-mode">
-              <button class="cat-btn active" id="set-mode-accept" data-mode="accept">⭕ 승낙</button>
-              <button class="cat-btn" id="set-mode-refuse" data-mode="refuse">❌ 거절</button>
-            </div>
-          </div>
           <div class="br-dialogue">
             <div class="br-line line-a">
-              <span class="br-who">🙋 나</span>
+              <span class="br-who" id="set-who-a">🙋 A</span>
               <div class="br-bubble">
-                <div class="br-sentence">Can you come to <span class="blank" id="set-event">________</span>?</div>
-                <div class="br-ko" id="set-event-ko">________에 올 수 있니?</div>
+                <div class="br-sentence">What's your favorite subject?</div>
+                <div class="br-ko">네가 가장 좋아하는 과목은 뭐니?</div>
               </div>
-              <button class="speak-btn small" id="set-speak-invite" aria-label="이 줄 듣기">🔊</button>
+              <button class="speak-btn small" id="set-speak-q" aria-label="이 줄 듣기">🔊</button>
             </div>
-            <div class="br-line line-b" id="set-answer-row">
-              <span class="br-who">🙆 친구</span>
+            <div class="br-line line-b">
+              <span class="br-who" id="set-who-b">🙆 B</span>
               <div class="br-bubble">
-                <div class="br-sentence" id="set-answer-line">Of course.</div>
-                <div class="br-ko" id="set-answer-ko">물론이지.</div>
+                <div class="br-sentence">My favorite subject is <span class="blank" id="set-subject">________</span>.</div>
+                <div class="br-ko" id="set-subject-ko">내가 가장 좋아하는 과목은 ________.</div>
               </div>
-              <button class="speak-btn small" id="set-speak-answer" aria-label="이 줄 듣기">🔊</button>
+              <button class="speak-btn small" id="set-speak-subject" aria-label="이 줄 듣기">🔊</button>
             </div>
-            <div class="br-line line-a" id="set-meet-row">
-              <span class="br-who">🙋 나</span>
+            <div class="br-line line-b">
+              <span class="br-who" id="set-who-b2">🙆 B</span>
               <div class="br-bubble">
-                <div class="br-sentence">Please come to <span class="blank" id="set-place">________</span> at <span class="blank" id="set-time">________</span>.</div>
-                <div class="br-ko" id="set-meet-ko">________에 ________(으)로 와 줘.</div>
+                <div class="br-sentence">I'm good at <span class="blank" id="set-skill">________</span>.</div>
+                <div class="br-ko" id="set-skill-ko">나는 ________을(를) 잘해.</div>
               </div>
-              <button class="speak-btn small" id="set-speak-meet" aria-label="이 줄 듣기">🔊</button>
+              <button class="speak-btn small" id="set-speak-skill" aria-label="이 줄 듣기">🔊</button>
             </div>
           </div>
           <div class="dlg-status" id="set-status"></div>
           <div class="fill-actions">
             <button id="set-listen" class="btn primary" disabled>🔊 대화 듣기</button>
             <button id="set-random" class="btn ghost">🎲 무작위로 채우기</button>
-            <button id="set-clear" class="btn ghost">🧹 이 행사 비우기</button>
+            <button id="set-clear" class="btn ghost">🧹 이 카드 비우기</button>
           </div>
         </div>
 
         <div class="build-step">
-          <h3 class="build-label">1️⃣ 행사 고르기 <span class="build-sub">Can you come to ___?</span></h3>
-          <div id="build-events"></div>
+          <h3 class="build-label">1️⃣ 좋아하는 과목 고르기 <span class="build-sub">My favorite subject is ___.</span></h3>
+          <div id="build-subjects"></div>
         </div>
         <div class="build-step">
-          <h3 class="build-label">2️⃣ 약속 시간과 장소 고르기 <span class="build-sub">Please come to ___ at ___.</span></h3>
-          <div class="chip-group-title">📍 장소 (Where)</div>
-          <div id="build-place" class="chip-row wrap"></div>
-          <div class="chip-group-title">⏰ 시간 (What time)</div>
-          <div id="build-time" class="chip-row wrap"></div>
+          <h3 class="build-label">2️⃣ 잘하는 것 고르기 <span class="build-sub">I'm good at ___.</span></h3>
+          <div id="build-skills" class="chip-row wrap"></div>
         </div>
       </div>
 
       <div class="section-block">
-        <h2>💬 내 대답 정하기 <span class="count">승낙 1 · 거절 1</span></h2>
-        <p class="hint">친구가 나를 초대했을 때 내가 말할 <b>승낙 표현 1개</b>와 <b>초대 거절할 때</b> 쓸 <b>거절 문장 1개</b>를 정해요. 고른 표현은 <b>위 대화</b>에 바로 나타나요(⭕ 승낙 / ❌ 거절). 거절 문장은 워크시트 <b>"초대 거절 할 때"</b> 칸에 적어요.</p>
-        <div class="build-step">
-          <div class="chip-group-title">⭕ 승낙 (Yes)</div>
-          <div id="build-accept" class="chip-row wrap"></div>
-          <div class="chip-group-title">❌ 거절 · Sorry, but I can't. I have a <span class="blank inline" id="build-refuse-blank">________</span>.</div>
-          <div id="build-refuse" class="chip-row wrap"></div>
-        </div>
-      </div>
-
-      <div class="section-block">
-        <h2>📝 워크시트에 적기 <span class="count">2번 표</span></h2>
-        <p class="hint">워크시트 <b>2번 표</b>와 같은 순서예요. 영어 문장을 보고 그대로 옮겨 적어요. 🔊를 누르면 읽어 줘요. (승낙 표현은 워크시트에 적는 칸이 없고, 3번 짝 활동에서 말해요.)</p>
+        <h2>📝 활동지에 적기 <span class="count">카드 3장</span></h2>
+        <p class="hint">영어 문장을 보고 공책이나 활동지에 그대로 옮겨 적어요. 🔊를 누르면 읽어 줘요.</p>
         <div id="sheet-summary" class="sheet-table"></div>
       </div>
     </section>
@@ -178,15 +179,15 @@
     <!-- ===== 🎤 연습 · 짝 활동 ===== -->
     <section id="tab-practice" class="tab-panel">
       <div class="section-block">
-        <h2>👫 짝 활동 카드 <span class="count">워크시트 3번</span></h2>
-        <p class="hint"><b>📋 워크시트 3번</b>: 짝에게 내가 선택한 행사로 초대해요. 초대받은 친구는 <b>승낙이든 거절이든 영어로 말해</b> 주고, 나는 워크시트에 친구 이름을 쓴 뒤 승낙이면 <b>○</b>, 거절이면 <b>×</b>를 표시해요. 승낙하면 약속 문장까지 말해요!</p>
+        <h2>👫 짝 활동 카드</h2>
+        <p class="hint">짝에게 <b>What's your favorite subject?</b> 라고 묻고, 짝은 <b>My favorite subject is ___.</b> <b>I'm good at ___.</b> 으로 대답해요. 역할을 바꿔서 나도 대답해요. 친구의 대답은 <b>🎒 나와 친구 카드</b>의 친구 카드에 기록해요.</p>
         <div id="pair-cards" class="pair-cards"></div>
       </div>
       <div class="section-block">
         <h2>🎤 컴퓨터와 미리 연습하기</h2>
-        <p class="hint">짝 활동 전에 혼자 연습해요. 줄마다 <b>🎙️ 말하기</b>로 정확도를 재고, <b>🎭 역할극</b>에서 내가 <b>A(초대하는 사람)</b> 또는 <b>B(대답하는 사람)</b>를 맡으면 컴퓨터가 상대 역할을 읽어 줘요. 친구가 <b>승낙</b>할 때와 <b>거절</b>할 때 두 가지로 연습할 수 있어요. (Chrome 권장)</p>
+        <p class="hint">짝 활동 전에 혼자 연습해요. 줄마다 <b>🎙️ 말하기</b>로 정확도를 재고, <b>🎭 역할극</b>에서 내가 <b>A(묻는 사람)</b> 또는 <b>B(대답하는 사람)</b>를 맡으면 컴퓨터가 상대 역할을 읽어 줘요. (Chrome 권장)</p>
         <p id="practice-empty" class="practice-empty">
-          아직 만든 행사가 없어요! <b>🎒 내 행사 만들기</b> 탭에서 행사와 약속 장소·시간을 골라 보세요.
+          아직 만든 카드가 없어요! <b>🎒 나와 친구 카드</b> 탭에서 과목과 잘하는 것을 골라 보세요.
         </p>
         <div id="practice-list" class="practice-list"></div>
       </div>
@@ -195,7 +196,7 @@
   </main>
 
   <footer class="app-footer">
-    <span class="voice-status">6학년 영어 · Can you come to the ___? 🎉</span>
+    <span class="voice-status">5학년 영어 · What's your favorite subject? 📚 · 그림: Canva 생성</span>
   </footer>
 
   <script src="data.js"></script>
