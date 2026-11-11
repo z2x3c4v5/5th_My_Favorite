@@ -1,9 +1,10 @@
 /* =========================================================
- * 6학년 · Can you come to the ___? · 듣고 따라 말하기 웹 앱
+ * 5학년 · What's your favorite subject? · 듣고 따라 말하기 웹 앱
  * - 음성 출력: Web Speech API (SpeechSynthesis)
  * - 단어 클릭: 단어 발음 + 뜻 풍선(popup)
- * - 내 행사 세트 만들기: 세트 3개(행사 + 약속 장소/시간) + 내 대답(승낙/거절)
- * - 세트 연습: 세트별 대화를 줄마다 말하기 + 역할극(A/B) 채점
+ * - 좋아하는 과목(10과목 × 3단계) · 잘하는 것(10개) 카드 — 그림은 Canva 생성
+ * - 대화 완성: What's your favorite subject? → My favorite subject is ___. I'm good at ___.
+ * - 나와 친구 카드 3장 + 줄마다 말하기 · 역할극(A/B) 채점
  * - 따라 말하기 채점: Web Speech API (SpeechRecognition)
  * ========================================================= */
 
@@ -95,19 +96,7 @@ function buildWords(sentence) {
   return frag;
 }
 
-/* ---------- 실사 이미지 ---------- */
-let imageMode = false; // false: 모든 카드를 같은 이모지 타일로 통일 (true로 바꾸면 AI 실사 사진 시도)
-function hashSeed(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h % 100000;
-}
-function imageUrl(prompt) {
-  const p = encodeURIComponent("a bright, friendly, realistic photo of " + prompt + ", for kids");
-  return `https://image.pollinations.ai/prompt/${p}?width=400&height=260&nologo=true&seed=${hashSeed(prompt)}`;
-}
-
-/* ---------- 카드 만들기 ---------- */
+/* ---------- 카드 만들기 (Canva 그림 · 없으면 이모지) ---------- */
 function makeCard(item, opts) {
   opts = opts || {};
   const div = document.createElement("div");
@@ -131,14 +120,14 @@ function makeCard(item, opts) {
   listenAll.addEventListener("click", e => { e.stopPropagation(); speakSentence(); });
   top.append(tag, listenAll);
 
-  // 이모지 또는 실사 이미지
+  // Canva 그림 (불러오지 못하면 이모지 타일)
   let visual;
-  if (imageMode && item.imgPrompt) {
+  if (item.img) {
     visual = document.createElement("img");
     visual.className = "photo";
     visual.loading = "lazy";
     visual.alt = item.en;
-    visual.src = imageUrl(item.imgPrompt);
+    visual.src = item.img;
     visual.addEventListener("error", () => {
       const em = document.createElement("div");
       em.className = "emoji";
@@ -171,7 +160,6 @@ function makeCard(item, opts) {
   box.append(txt, speakBtn);
 
   div.append(top, visual, box);
-
   return div;
 }
 
@@ -186,20 +174,26 @@ function renderGrid(id, list, opts) {
   });
 }
 
-/* ---------- 난이도(초급/중급/고급) + 활동 종류 ---------- */
+/* ---------- 문장 만들기 도우미 ---------- */
+const subjectLine = s => `My favorite subject is ${s.en}.`;
+const subjectKo   = s => `내가 가장 좋아하는 과목은 ${s.koIs}.`;
+const skillLine   = k => `I'm good at ${k.en}.`;
+const findSubject = en => SUBJECTS.find(x => x.en === en) || null;
+const findSkill   = en => SKILLS.find(x => x.en === en) || null;
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* ===========================================================
+ * 📚 좋아하는 과목 (질문 + 난이도 × 과목 종류)
+ * =========================================================== */
+document.getElementById("question-line").appendChild(buildWords(QUESTION.en));
+document.getElementById("question-speak").addEventListener("click", () => speak(QUESTION.en));
+
 let currentLevel = "beginner";
 let currentCategory = "all";
-function currentSuggestions() { return SUGGESTION_LEVELS[currentLevel]; }
 
-function renderSuggestions() {
-  const lvl = currentSuggestions();
-  const view = [];
-  lvl.forEach((item, i) => {
-    if (currentCategory === "all" || SUGGESTION_CATEGORIES[i] === currentCategory) {
-      view.push(Object.assign({}, item, { imgPrompt: IMAGE_PROMPTS[i] }));
-    }
-  });
-  renderGrid("suggestion-grid", view, { tones: true });
+function renderSubjects() {
+  const view = SUBJECT_LEVELS[currentLevel].filter(item => currentCategory === "all" || item.cat === currentCategory);
+  renderGrid("subject-grid", view, { tones: true });
 }
 
 document.querySelectorAll(".level-btn").forEach(btn => {
@@ -207,75 +201,21 @@ document.querySelectorAll(".level-btn").forEach(btn => {
     document.querySelectorAll(".level-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     currentLevel = btn.dataset.level;
-    synth.cancel();
-    hidePopup();
-    renderSuggestions();
+    synth.cancel(); hidePopup(); renderSubjects();
   });
 });
-
-document.querySelectorAll(".cat-btn").forEach(btn => {
+document.querySelectorAll("#subject-cat-switch .cat-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("#subject-cat-switch .cat-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     currentCategory = btn.dataset.cat;
-    synth.cancel();
-    hidePopup();
-    renderSuggestions();
+    synth.cancel(); hidePopup(); renderSubjects();
   });
 });
 
 /* ===========================================================
- * 🎒 내 행사 세트 만들기 (세트 3개: 행사 1 + 약속 장소·시간 1)  +  내 대답 (승낙 1 · 거절 1)
+ * 💪 잘하는 것 (I'm good at ~.)
  * =========================================================== */
-const SET_COUNT = 3;
-let mySets = [];        // [{ event, place, time }] (영어 문구 en 으로 저장)
-let myAccept = ACCEPT_EXPRESSIONS[0].en;
-let myReason = null;    // REFUSE_REASONS 의 en
-let setMode = "accept"; // 위 대화 미리보기: 친구가 승낙("accept") / 거절("refuse")
-let curSet = 0;
-let stats = {};         // 문장별 정확도 기록
-
-try {
-  const saved = JSON.parse(localStorage.getItem("invite_sets") || "null");
-  if (saved && Array.isArray(saved.sets)) {
-    mySets = saved.sets;
-    if (saved.accept) myAccept = saved.accept;
-    if (saved.reason) myReason = saved.reason;
-    if (saved.mode === "refuse" || saved.mode === "accept") setMode = saved.mode;
-  }
-} catch (e) {}
-while (mySets.length < SET_COUNT) mySets.push({ event: null, place: null, time: null });
-try { stats = JSON.parse(localStorage.getItem("invite_stats") || "{}") || {}; } catch (e) {}
-
-function persist() {
-  try {
-    localStorage.setItem("invite_sets", JSON.stringify({ sets: mySets, accept: myAccept, reason: myReason, mode: setMode }));
-    localStorage.setItem("invite_stats", JSON.stringify(stats));
-  } catch (e) {}
-}
-const findEvent = en => BUILD_EVENTS.find(x => x.en === en) || null;
-const findPlace = en => PLACE_EXPRESSIONS.find(x => x.en === en) || null;
-const findTime  = en => TIME_EXPRESSIONS.find(x => x.en === en) || null;
-const findAccept = en => ACCEPT_EXPRESSIONS.find(x => x.en === en) || ACCEPT_EXPRESSIONS[0];
-const findReason = en => REFUSE_REASONS.find(x => x.en === en) || null;
-function setComplete(s) { return !!(findEvent(s.event) && findPlace(s.place) && findTime(s.time)); }
-function completeCount() { return mySets.filter(setComplete).length; }
-
-/* 세트 → 대화 줄 (승낙/거절 버전) */
-function setLines(s, mode) {
-  const ev = findEvent(s.event), pl = findPlace(s.place), tm = findTime(s.time);
-  const acc = findAccept(myAccept), rs = findReason(myReason);
-  const lines = [{ who: "A", en: `Can you come to ${ev.en}?`, ko: `${ev.ko}에 올 수 있니?` }];
-  if (mode === "refuse") {
-    lines.push({ who: "B", en: `Sorry, but I can't. I have a ${rs ? rs.en : "piano lesson"}.`,
-                 ko: `미안하지만 못 가. 나 ${rs ? rs.ko : "피아노 수업"}(이)가 있어.` });
-  } else {
-    lines.push({ who: "B", en: acc.en, ko: acc.ko });
-    lines.push({ who: "A", en: `Please come to ${pl.en} at ${tm.en}.`, ko: `${tm.ko}에 ${pl.ko}(으)로 와 줘.` });
-  }
-  return lines;
-}
-
 function makeChip(text, cls, isOn, onClick) {
   const c = document.createElement("button");
   c.className = "chip " + cls + (isOn ? " on" : "");
@@ -289,125 +229,161 @@ function setBlank(id, en) {
   if (en) { el.innerHTML = ""; el.appendChild(buildWords(en)); }
   else el.textContent = "________";
 }
+
+let lastFillSpoken = "";
+function fillActions(wrap, en) {
+  wrap.innerHTML = "";
+  if (!en) return;
+  const listenBtn = document.createElement("button");
+  listenBtn.className = "btn primary";
+  listenBtn.textContent = "🔊 문장 듣기";
+  listenBtn.addEventListener("click", () => speak(en));
+  wrap.append(listenBtn);
+  if (en !== lastFillSpoken) { lastFillSpoken = en; speak(en); }
+}
+
+function renderSkills() {
+  renderGrid("skill-grid", SKILLS.map(k => ({ en: skillLine(k), ko: k.koSent, emoji: k.emoji, img: k.img })), { tones: true });
+}
+
+let fillSkill = null;
+function renderGoodFill() {
+  const row = document.getElementById("good-chips");
+  row.innerHTML = "";
+  SKILLS.forEach(k => {
+    row.appendChild(makeChip(`${k.emoji} ${k.en}`, "where", fillSkill === k, () => { fillSkill = k; renderGoodFill(); }));
+  });
+  setBlank("good-blank", fillSkill && fillSkill.en);
+  document.getElementById("good-ko").textContent = fillSkill ? fillSkill.koSent : "나는 ________을(를) 잘해.";
+  fillActions(document.getElementById("good-actions"), fillSkill && skillLine(fillSkill));
+}
+
+/* ===========================================================
+ * 💬 대화 완성 (과목 + 잘하는 것)
+ * =========================================================== */
+let talkSubject = null, talkSkill = null;
+function renderTalkFill() {
+  const sRow = document.getElementById("talk-subject-chips");
+  const kRow = document.getElementById("talk-skill-chips");
+  sRow.innerHTML = ""; kRow.innerHTML = "";
+  SUBJECTS.forEach(s => {
+    sRow.appendChild(makeChip(`${s.emoji} ${s.en}`, "act", talkSubject === s, () => { talkSubject = s; renderTalkFill(); }));
+  });
+  SKILLS.forEach(k => {
+    kRow.appendChild(makeChip(`${k.emoji} ${k.en}`, "where", talkSkill === k, () => { talkSkill = k; renderTalkFill(); }));
+  });
+  setBlank("talk-subject-blank", talkSubject && talkSubject.en);
+  setBlank("talk-skill-blank", talkSkill && talkSkill.en);
+  document.getElementById("talk-ko").textContent =
+    `${talkSubject ? subjectKo(talkSubject) : "내가 가장 좋아하는 과목은 ________."} ${talkSkill ? talkSkill.koSent : "나는 ________을(를) 잘해."}`;
+  fillActions(document.getElementById("talk-actions"),
+    talkSubject && talkSkill && `${QUESTION.en} ${subjectLine(talkSubject)} ${skillLine(talkSkill)}`);
+}
+
+/* ===========================================================
+ * 🎒 나와 친구 카드 (3장: 나 · 친구 1 · 친구 2) — 과목 1 + 잘하는 것 1
+ * =========================================================== */
+const SET_COUNT = 3;
+const SET_LABELS = ["🙋 나", "👦 친구 1", "👧 친구 2"];
+let mySets = [];        // [{ subject, skill }] (영어 en 으로 저장)
+let curSet = 0;
+let stats = {};         // 문장별 정확도 기록
+
+try {
+  const saved = JSON.parse(localStorage.getItem("favsubject_sets") || "null");
+  if (saved && Array.isArray(saved.sets)) mySets = saved.sets;
+} catch (e) {}
+while (mySets.length < SET_COUNT) mySets.push({ subject: null, skill: null });
+try { stats = JSON.parse(localStorage.getItem("favsubject_stats") || "{}") || {}; } catch (e) {}
+
+function persist() {
+  try {
+    localStorage.setItem("favsubject_sets", JSON.stringify({ sets: mySets }));
+    localStorage.setItem("favsubject_stats", JSON.stringify(stats));
+  } catch (e) {}
+}
+function setComplete(s) { return !!(findSubject(s.subject) && findSkill(s.skill)); }
+function completeCount() { return mySets.filter(setComplete).length; }
+
+/* 카드 → 대화 줄 */
+function setLines(s) {
+  const sb = findSubject(s.subject), sk = findSkill(s.skill);
+  return [
+    { who: "A", en: QUESTION.en, ko: QUESTION.ko },
+    { who: "B", en: subjectLine(sb), ko: subjectKo(sb) },
+    { who: "B", en: skillLine(sk), ko: sk.koSent },
+  ];
+}
+
 function updateSetBadge() {
   const c = document.getElementById("set-count");
   if (c) c.textContent = `${completeCount()}/${SET_COUNT}`;
   document.querySelectorAll("#set-tabs .set-tab").forEach((b, i) => {
     b.classList.toggle("active", i === curSet);
     b.classList.toggle("done", setComplete(mySets[i]));
-    const ev = findEvent(mySets[i].event);
-    b.textContent = `행사 ${i + 1} ${ev ? ev.emoji : ""}${setComplete(mySets[i]) ? " ✓" : ""}`;
+    const sb = findSubject(mySets[i].subject);
+    b.textContent = `${SET_LABELS[i]} ${sb ? sb.emoji : ""}${setComplete(mySets[i]) ? " ✓" : ""}`;
   });
 }
 
 function renderBuilder() {
   const s = mySets[curSet];
-  const evWrap = document.getElementById("build-events");
-  const placeRow = document.getElementById("build-place");
-  const timeRow = document.getElementById("build-time");
-  const acceptRow = document.getElementById("build-accept");
-  const refuseRow = document.getElementById("build-refuse");
-  evWrap.innerHTML = ""; placeRow.innerHTML = ""; timeRow.innerHTML = ""; acceptRow.innerHTML = ""; refuseRow.innerHTML = "";
+  const subWrap = document.getElementById("build-subjects");
+  const skillRow = document.getElementById("build-skills");
+  subWrap.innerHTML = ""; skillRow.innerHTML = "";
 
-  const usedElsewhere = new Set(mySets.filter((x, i) => i !== curSet).map(x => x.event).filter(Boolean));
-  BUILD_CATS.forEach(cat => {
-    const items = BUILD_EVENTS.filter(a => a.cat === cat.key);
+  SUBJECT_CATS.forEach(cat => {
     const title = document.createElement("div");
     title.className = "chip-group-title";
     title.textContent = cat.label;
     const row = document.createElement("div");
     row.className = "chip-row wrap";
-    items.forEach(a => {
-      const chip = makeChip(`${a.emoji} ${a.en}`, "act", s.event === a.en, () => {
-        s.event = a.en; persist(); renderBuilder(); updateSetPreview(true);
-      });
-      if (usedElsewhere.has(a.en)) { chip.classList.add("used"); chip.title = "다른 세트에서 이미 골랐어요"; }
-      row.appendChild(chip);
+    SUBJECTS.filter(a => a.cat === cat.key).forEach(a => {
+      row.appendChild(makeChip(`${a.emoji} ${a.en}`, "act", s.subject === a.en, () => {
+        s.subject = a.en; persist(); renderBuilder(); updateSetPreview(true);
+      }));
     });
-    evWrap.append(title, row);
+    subWrap.append(title, row);
   });
-  PLACE_EXPRESSIONS.forEach(p => {
-    placeRow.appendChild(makeChip(`${p.emoji} ${p.en}`, "place", s.place === p.en, () => {
-      s.place = p.en; persist(); renderBuilder(); updateSetPreview(true);
+  SKILLS.forEach(k => {
+    skillRow.appendChild(makeChip(`${k.emoji} ${k.en}`, "where", s.skill === k.en, () => {
+      s.skill = k.en; persist(); renderBuilder(); updateSetPreview(true);
     }));
   });
-  TIME_EXPRESSIONS.forEach(t => {
-    timeRow.appendChild(makeChip(`${t.emoji} ${t.en}`, "with", s.time === t.en, () => {
-      s.time = t.en; persist(); renderBuilder(); updateSetPreview(true);
-    }));
-  });
-  ACCEPT_EXPRESSIONS.forEach(m => {
-    acceptRow.appendChild(makeChip(`${m.emoji} ${m.en}`, "when", myAccept === m.en, () => {
-      myAccept = m.en; setMode = "accept"; persist(); renderBuilder(); updateSetPreview(); speak(m.en);
-    }));
-  });
-  REFUSE_REASONS.forEach(r => {
-    refuseRow.appendChild(makeChip(`${r.emoji} ${r.en}`, "where", myReason === r.en, () => {
-      myReason = r.en; setMode = "refuse"; persist(); renderBuilder(); updateSetPreview();
-      speak(`Sorry, but I can't. I have a ${r.en}.`);
-    }));
-  });
-  const rb = document.getElementById("build-refuse-blank");
-  rb.classList.toggle("filled", !!myReason);
-  rb.textContent = myReason || "________";
   updateSetBadge();
 }
 
 let lastSetSpoken = "";
-/* 미리보기 대화를 들려줄 수 있는 상태인지 (거절 버전은 약속 문장이 없어 행사만 있으면 됨) */
-function setPlayable(s) { return setMode === "refuse" ? !!(findEvent(s.event) && findReason(myReason)) : setComplete(s); }
-
 function updateSetPreview(autoSpeak) {
   const s = mySets[curSet];
-  const ev = findEvent(s.event), pl = findPlace(s.place), tm = findTime(s.time);
-  const acc = findAccept(myAccept), rs = findReason(myReason);
-  const refusing = setMode === "refuse";
-  setBlank("set-event", ev && ev.en);
-  document.getElementById("set-event-ko").textContent = `${ev ? ev.ko : "________"}에 올 수 있니?`;
+  const sb = findSubject(s.subject), sk = findSkill(s.skill);
+  const isMe = curSet === 0;
+  document.getElementById("set-who-a").textContent = isMe ? "👂 친구" : "🙋 나";
+  document.getElementById("set-who-b").textContent = isMe ? "🙋 나" : SET_LABELS[curSet];
+  document.getElementById("set-who-b2").textContent = isMe ? "🙋 나" : SET_LABELS[curSet];
 
-  // 친구의 대답 줄: 승낙 표현 또는 거절 문장
-  document.getElementById("set-mode-accept").classList.toggle("active", !refusing);
-  document.getElementById("set-mode-refuse").classList.toggle("active", refusing);
-  const answerEn = refusing ? `Sorry, but I can't. I have a ${rs ? rs.en : "________"}.` : acc.en;
-  const answerKo = refusing ? `미안하지만 못 가. 나 ${rs ? rs.ko : "________"}(이)가 있어.` : acc.ko;
-  const al = document.getElementById("set-answer-line");
-  al.innerHTML = ""; al.appendChild(buildWords(answerEn));
-  document.getElementById("set-answer-ko").textContent = answerKo;
-  document.getElementById("set-answer-row").classList.toggle("refusing", refusing);
-
-  // 약속 문장 줄: 거절하면 말하지 않으므로 흐리게 (거절 버전 대화에서 빠짐)
-  setBlank("set-place", pl && pl.en);
-  setBlank("set-time", tm && tm.en);
-  document.getElementById("set-meet-ko").textContent = `${tm ? tm.ko : "________"}에 ${pl ? pl.ko : "________"}(으)로 와 줘.`;
-  document.getElementById("set-meet-row").classList.toggle("dimmed", refusing);
+  setBlank("set-subject", sb && sb.en);
+  setBlank("set-skill", sk && sk.en);
+  document.getElementById("set-subject-ko").textContent = sb ? subjectKo(sb) : "내가 가장 좋아하는 과목은 ________.";
+  document.getElementById("set-skill-ko").textContent = sk ? sk.koSent : "나는 ________을(를) 잘해.";
 
   const status = document.getElementById("set-status");
   const complete = setComplete(s);
+  const who = isMe ? "내가" : "친구가";
   status.className = "dlg-status" + (complete ? " ok" : "");
-  if (!ev) status.textContent = `행사 ${curSet + 1} · 1️⃣ 초대할 행사를 골라보세요 👇`;
-  else if (refusing && !rs) status.textContent = `행사 ${curSet + 1} · ❌ 거절 버전이에요. 아래에서 ❌ 거절 이유를 골라요 👇`;
-  else if (!pl || !tm) status.textContent = `행사 ${curSet + 1} · 2️⃣ 약속 ${!pl ? "📍 장소" : ""}${!pl && !tm ? "와 " : ""}${!tm ? "⏰ 시간" : ""}을 골라요 👇`;
-  else if (refusing) status.textContent = `❌ 친구가 거절하면 약속 문장은 말하지 않아요. ⭕ 승낙을 누르면 약속까지 이어져요.`;
-  else status.textContent = `✅ 행사 ${curSet + 1} 완성! ${completeCount() < SET_COUNT ? "다음 행사도 만들어 보세요." : "세 행사 모두 완성! 📝 워크시트에 적고 🎤 연습으로 가요."}`;
+  if (!sb) status.textContent = `${SET_LABELS[curSet]} · 1️⃣ ${who} 가장 좋아하는 과목을 골라 보세요 👇`;
+  else if (!sk) status.textContent = `${SET_LABELS[curSet]} · 2️⃣ ${who} 잘하는 것을 골라 보세요 👇`;
+  else status.textContent = `✅ ${SET_LABELS[curSet]} 카드 완성! ${completeCount() < SET_COUNT ? "다음 카드도 만들어 보세요." : "세 카드 모두 완성! 📝 활동지에 적고 🎤 연습으로 가요."}`;
   renderSheetSummary();
   const listen = document.getElementById("set-listen");
-  listen.textContent = refusing ? "🔊 대화 듣기 (거절)" : "🔊 대화 듣기 (승낙)";
-  listen.disabled = !setPlayable(s);
+  listen.disabled = !complete;
   updateSetBadge();
-  // 자동 읽기는 사용자가 칩을 눌러 고른 직후에만 (페이지 열기·탭 전환 때는 조용히)
-  if (setPlayable(s) && autoSpeak) {
-    const en = setLines(s, setMode).map(l => l.en).join(" ");
+  // 자동 읽기는 사용자가 칩을 눌러 고른 직후에만
+  if (complete && autoSpeak) {
+    const en = setLines(s).map(l => l.en).join(" ");
     if (en !== lastSetSpoken) { lastSetSpoken = en; speak(en); }
-  } else if (!setPlayable(s)) lastSetSpoken = "";
+  } else if (!complete) lastSetSpoken = "";
 }
-
-document.querySelectorAll("#set-mode .cat-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    setMode = btn.dataset.mode;
-    synth.cancel(); lastSetSpoken = "";
-    persist(); renderBuilder(); updateSetPreview();
-  });
-});
 
 document.querySelectorAll("#set-tabs .set-tab").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -415,35 +391,25 @@ document.querySelectorAll("#set-tabs .set-tab").forEach(btn => {
     renderBuilder(); updateSetPreview();
   });
 });
-document.getElementById("set-speak-invite").addEventListener("click", () => {
-  const ev = findEvent(mySets[curSet].event); if (ev) speak(`Can you come to ${ev.en}?`);
+document.getElementById("set-speak-q").addEventListener("click", () => speak(QUESTION.en));
+document.getElementById("set-speak-subject").addEventListener("click", () => {
+  const sb = findSubject(mySets[curSet].subject); if (sb) speak(subjectLine(sb));
 });
-document.getElementById("set-speak-answer").addEventListener("click", () => {
-  const rs = findReason(myReason);
-  if (setMode === "refuse") { if (rs) speak(`Sorry, but I can't. I have a ${rs.en}.`); }
-  else speak(findAccept(myAccept).en);
-});
-document.getElementById("set-speak-meet").addEventListener("click", () => {
-  const s = mySets[curSet], pl = findPlace(s.place), tm = findTime(s.time);
-  if (pl && tm) speak(`Please come to ${pl.en} at ${tm.en}.`);
+document.getElementById("set-speak-skill").addEventListener("click", () => {
+  const sk = findSkill(mySets[curSet].skill); if (sk) speak(skillLine(sk));
 });
 document.getElementById("set-listen").addEventListener("click", () => {
   const s = mySets[curSet];
-  if (setPlayable(s)) speak(setLines(s, setMode).map(l => l.en).join(" "));
+  if (setComplete(s)) speak(setLines(s).map(l => l.en).join(" "));
 });
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 document.getElementById("set-random").addEventListener("click", () => {
   const s = mySets[curSet];
-  const used = new Set(mySets.filter((x, i) => i !== curSet).map(x => x.event));
-  const pool = BUILD_EVENTS.filter(e => !used.has(e.en));
-  s.event = pick(pool.length ? pool : BUILD_EVENTS).en;
-  s.place = pick(PLACE_EXPRESSIONS).en;
-  s.time = pick(TIME_EXPRESSIONS).en;
-  if (!myReason) myReason = pick(REFUSE_REASONS).en;
+  s.subject = pick(SUBJECTS).en;
+  s.skill = pick(SKILLS).en;
   persist(); renderBuilder(); updateSetPreview(true);
 });
 document.getElementById("set-clear").addEventListener("click", () => {
-  mySets[curSet] = { event: null, place: null, time: null };
+  mySets[curSet] = { subject: null, skill: null };
   synth.cancel(); persist(); renderBuilder(); updateSetPreview();
 });
 
@@ -472,7 +438,7 @@ function wordsClose(a, b) {
   if (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a))) return true;
   return Math.abs(a.length - b.length) <= 1 && levenshtein(a, b) <= 1;
 }
-const STOPWORDS = new Set(["a", "an", "the", "to", "of", "on", "in", "at", "for", "but", "i", "i'm", "i'll"]);
+const STOPWORDS = new Set(["a", "an", "the", "to", "of", "on", "in", "at", "for", "but", "i", "i'm", "is", "my"]);
 function scoreMatch(target, heard) {
   const t = normalize(target).split(" ").filter(Boolean);
   const h = normalize(heard).split(" ").filter(Boolean);
@@ -592,7 +558,7 @@ function makeSpeakRow(en, ko, who) {
 
 
 /* ===========================================================
- * 📝 워크시트에 적기 (2번 표와 같은 순서)
+ * 📝 활동지에 적기
  * =========================================================== */
 function sheetRow(label, en, ko) {
   const row = document.createElement("div");
@@ -614,19 +580,16 @@ function renderSheetSummary() {
   const box = document.getElementById("sheet-summary");
   if (!box) return;
   box.innerHTML = "";
+  box.appendChild(sheetRow("묻기", QUESTION.en, QUESTION.ko));
   mySets.forEach((s, i) => {
-    const ev = findEvent(s.event), pl = findPlace(s.place), tm = findTime(s.time);
-    box.appendChild(sheetRow(`내가 선택한 행사 ${i + 1}`, ev && `Can you come to ${ev.en}?`, ev && `${ev.ko}에 올 수 있니?`));
-    box.appendChild(sheetRow(`약속 시간과 장소 ${i + 1}`, pl && tm && `Please come to ${pl.en} at ${tm.en}.`, pl && tm && `${tm.ko}에 ${pl.ko}(으)로 와 줘.`));
+    const sb = findSubject(s.subject), sk = findSkill(s.skill);
+    box.appendChild(sheetRow(`${SET_LABELS[i]} · 좋아하는 과목`, sb && subjectLine(sb), sb && subjectKo(sb)));
+    box.appendChild(sheetRow(`${SET_LABELS[i]} · 잘하는 것`, sk && skillLine(sk), sk && sk.koSent));
   });
-  const rs = findReason(myReason);
-  box.appendChild(sheetRow("초대 거절 할 때", rs && `Sorry, but I can't. I have a ${rs.en}.`, rs && `미안하지만 못 가. 나 ${rs.ko}(이)가 있어.`));
-  const acc = findAccept(myAccept);
-  box.appendChild(sheetRow("초대 승낙 할 때 (말하기용)", acc.en, acc.ko));
 }
 
 /* ===========================================================
- * 👫 짝 활동 카드 (행사별 초대 문장 크게 + 친구 대답 안내)
+ * 👫 짝 활동 카드
  * =========================================================== */
 function renderPairCards() {
   const box = document.getElementById("pair-cards");
@@ -634,60 +597,54 @@ function renderPairCards() {
   const done = mySets.map((s, i) => [s, i]).filter(([s]) => setComplete(s));
   if (!done.length) {
     const p = document.createElement("p"); p.className = "practice-empty";
-    p.innerHTML = "아직 만든 행사가 없어요! <b>🎒 내 행사 만들기</b>에서 먼저 만들어요.";
+    p.innerHTML = "아직 만든 카드가 없어요! <b>🎒 나와 친구 카드</b>에서 먼저 만들어요.";
     box.appendChild(p); return;
   }
-  const rs = findReason(myReason), acc = findAccept(myAccept);
   done.forEach(([s, i]) => {
-    const ev = findEvent(s.event), pl = findPlace(s.place), tm = findTime(s.time);
+    const sb = findSubject(s.subject), sk = findSkill(s.skill);
+    const isMe = i === 0;
     const card = document.createElement("div");
     card.className = "pair-card tone-" + (i % 6);
     const head = document.createElement("div"); head.className = "pair-head";
-    head.innerHTML = `<span class="card-tag tag-combo">행사 ${i + 1}</span><span class="pair-emoji">${ev.emoji}</span>`;
-    const invite = document.createElement("div"); invite.className = "pair-line me";
-    invite.innerHTML = `<div class="pair-who">🙋 나</div>`;
-    const inv = document.createElement("div"); inv.className = "pair-en"; inv.appendChild(buildWords(`Can you come to ${ev.en}?`));
-    invite.appendChild(inv);
+    head.innerHTML = `<span class="card-tag tag-combo">${SET_LABELS[i]}</span><span class="pair-emoji">${sb.emoji}${sk.emoji}</span>`;
+    const q = document.createElement("div"); q.className = "pair-line me";
+    q.innerHTML = `<div class="pair-who">${isMe ? "👂 친구가 물어요" : "🙋 내가 물어요"}</div>`;
+    const qe = document.createElement("div"); qe.className = "pair-en"; qe.appendChild(buildWords(QUESTION.en));
+    q.appendChild(qe);
     const ans = document.createElement("div"); ans.className = "pair-line friend";
-    ans.innerHTML = `<div class="pair-who">🙆 친구 (승낙 ○ / 거절 ×)</div>
-      <div class="pair-choice"><span class="pair-ok">○ ${acc.en}</span><span class="pair-no">× Sorry, but I can't. I have a ___.</span></div>`;
-    const meet = document.createElement("div"); meet.className = "pair-line me";
-    meet.innerHTML = `<div class="pair-who">🙋 나 (승낙했을 때)</div>`;
-    const m = document.createElement("div"); m.className = "pair-en"; m.appendChild(buildWords(`Please come to ${pl.en} at ${tm.en}.`));
-    meet.appendChild(m);
+    ans.innerHTML = `<div class="pair-who">${isMe ? "🙋 내가 대답해요" : `${SET_LABELS[i]}의 대답`}</div>`;
+    const a1 = document.createElement("div"); a1.className = "pair-en"; a1.appendChild(buildWords(subjectLine(sb)));
+    const a2 = document.createElement("div"); a2.className = "pair-en"; a2.appendChild(buildWords(skillLine(sk)));
+    ans.append(a1, a2);
     const tools = document.createElement("div"); tools.className = "ptools";
-    const b1 = document.createElement("button"); b1.className = "btn small primary"; b1.textContent = "🔊 초대 듣기";
-    b1.addEventListener("click", () => speak(`Can you come to ${ev.en}?`));
-    const b2 = document.createElement("button"); b2.className = "btn small"; b2.textContent = "🔊 약속 듣기";
-    b2.addEventListener("click", () => speak(`Please come to ${pl.en} at ${tm.en}.`));
+    const b1 = document.createElement("button"); b1.className = "btn small primary"; b1.textContent = "🔊 질문 듣기";
+    b1.addEventListener("click", () => speak(QUESTION.en));
+    const b2 = document.createElement("button"); b2.className = "btn small"; b2.textContent = "🔊 대답 듣기";
+    b2.addEventListener("click", () => speak(`${subjectLine(sb)} ${skillLine(sk)}`));
     tools.append(b1, b2);
-    card.append(head, invite, ans, meet, tools);
+    card.append(head, q, ans, tools);
     box.appendChild(card);
   });
   const note = document.createElement("p"); note.className = "hint pair-note";
-  note.innerHTML = `💬 내가 초대받았을 때: 승낙 <b>${acc.en}</b> · 거절 <b>${rs ? `Sorry, but I can't. I have a ${rs.en}.` : "(거절 문장을 정해요)"}</b>`;
+  note.innerHTML = `💬 대답할 때는 과목 이름을 또박또박! 친구 대답이 내 카드와 같으면 <b>Me, too!</b> 라고 말해 봐요.`;
   box.appendChild(note);
 }
 
 /* ===========================================================
- * 🎤 컴퓨터와 미리 연습하기 (행사별 대화: 줄마다 말하기 + 역할극)
+ * 🎤 컴퓨터와 미리 연습하기 (카드별 대화: 줄마다 말하기 + 역할극)
  * =========================================================== */
 function makeSetCard(s, idx) {
   const card = document.createElement("div");
   card.className = "pcard pcard-dialog";
-  const ev = findEvent(s.event);
+  const sb = findSubject(s.subject), sk = findSkill(s.skill);
 
   const top = document.createElement("div");
   top.className = "card-top";
   const left = document.createElement("div"); left.className = "ptag-left";
-  const tag = document.createElement("span"); tag.className = "card-tag tag-combo"; tag.textContent = `🎒 행사 ${idx + 1}`;
-  const title = document.createElement("span"); title.className = "pset-title"; title.textContent = `${ev.emoji} ${ev.en}`;
+  const tag = document.createElement("span"); tag.className = "card-tag tag-combo"; tag.textContent = `🎒 ${SET_LABELS[idx]}`;
+  const title = document.createElement("span"); title.className = "pset-title"; title.textContent = `${sb.emoji} ${sb.en} · ${sk.emoji} ${sk.en}`;
   left.append(tag, title);
-  const modeWrap = document.createElement("div"); modeWrap.className = "mode-switch";
-  const mAcc = document.createElement("button"); mAcc.className = "cat-btn active"; mAcc.textContent = "⭕ 친구가 승낙";
-  const mRef = document.createElement("button"); mRef.className = "cat-btn"; mRef.textContent = "❌ 친구가 거절";
-  modeWrap.append(mAcc, mRef);
-  top.append(left, modeWrap);
+  top.append(left);
   card.appendChild(top);
 
   const body = document.createElement("div");
@@ -695,29 +652,20 @@ function makeSetCard(s, idx) {
   const roleNote = document.createElement("div"); roleNote.className = "role-note";
   card.append(body, tools, roleNote);
 
-  let mode = "accept";
-  let rows = [];
+  const rows = setLines(s).map(l => makeSpeakRow(l.en, l.ko, l.who));
+  rows.forEach(r => body.appendChild(r));
   let playing = false;
 
-  function render() {
-    mAcc.classList.toggle("active", mode === "accept");
-    mRef.classList.toggle("active", mode === "refuse");
-    body.innerHTML = "";
-    rows = setLines(s, mode).map(l => makeSpeakRow(l.en, l.ko, l.who));
-    rows.forEach(r => body.appendChild(r));
-    tools.innerHTML = "";
-    const allBtn = document.createElement("button");
-    allBtn.className = "btn small"; allBtn.textContent = "🔊 전체 듣기";
-    allBtn.addEventListener("click", () => speak(rows.map(r => r._en).join(" ")));
-    const roleA = document.createElement("button");
-    roleA.className = "btn small primary"; roleA.textContent = "🎭 내가 A (초대하기)";
-    const roleB = document.createElement("button");
-    roleB.className = "btn small primary"; roleB.textContent = "🎭 내가 B (대답하기)";
-    roleA.addEventListener("click", () => rolePlay("A", [roleA, roleB]));
-    roleB.addEventListener("click", () => rolePlay("B", [roleA, roleB]));
-    tools.append(allBtn, roleA, roleB);
-    roleNote.textContent = "";
-  }
+  const allBtn = document.createElement("button");
+  allBtn.className = "btn small"; allBtn.textContent = "🔊 전체 듣기";
+  allBtn.addEventListener("click", () => speak(rows.map(r => r._en).join(" ")));
+  const roleA = document.createElement("button");
+  roleA.className = "btn small primary"; roleA.textContent = "🎭 내가 A (묻기)";
+  const roleB = document.createElement("button");
+  roleB.className = "btn small primary"; roleB.textContent = "🎭 내가 B (대답하기)";
+  roleA.addEventListener("click", () => rolePlay("A", [roleA, roleB]));
+  roleB.addEventListener("click", () => rolePlay("B", [roleA, roleB]));
+  tools.append(allBtn, roleA, roleB);
 
   function rolePlay(me, btns) {
     if (playing || recBusy) return;
@@ -728,25 +676,21 @@ function makeSetCard(s, idx) {
       rows.forEach(r => r.classList.remove("turn"));
       if (i >= rows.length) {
         playing = false; btns.forEach(b => b.disabled = false);
-        roleNote.textContent = "🎉 역할극 끝! 잘했어요. 다른 역할이나 거절 버전도 해 볼까요?";
+        roleNote.textContent = "🎉 역할극 끝! 잘했어요. 역할을 바꿔서도 해 볼까요?";
         return;
       }
       const r = rows[i]; i++;
       r.classList.add("turn");
       if (r._who === me) {
-        roleNote.textContent = `🎙️ 내 차례! "${r._en}" 라고 말해보세요.`;
+        roleNote.textContent = `🎙️ 내 차례! "${r._en}" 라고 말해 보세요.`;
         r._attempt(() => setTimeout(step, 500));
       } else {
-        roleNote.textContent = `👂 컴퓨터(${r._who})가 말해요. 잘 들어보세요.`;
+        roleNote.textContent = `👂 컴퓨터(${r._who})가 말해요. 잘 들어 보세요.`;
         speakThen(r._en, () => setTimeout(step, 400));
       }
     };
     step();
   }
-
-  mAcc.addEventListener("click", () => { if (!playing) { mode = "accept"; render(); } });
-  mRef.addEventListener("click", () => { if (!playing) { mode = "refuse"; render(); } });
-  render();
   return card;
 }
 
@@ -762,97 +706,18 @@ function renderPractice() {
   if (done.length < SET_COUNT) {
     const note = document.createElement("p");
     note.className = "practice-empty";
-    note.innerHTML = `아직 <b>${SET_COUNT - done.length}개</b> 행사가 비어 있어요. <b>🎒 내 행사 만들기</b>에서 마저 만들어 보세요.`;
+    note.innerHTML = `아직 <b>${SET_COUNT - done.length}장</b>의 카드가 비어 있어요. <b>🎒 나와 친구 카드</b>에서 마저 만들어 보세요.`;
     list.appendChild(note);
   }
 }
 
-
-/* ---------- 대답 · 약속 카드 ---------- */
-function renderAnswerGrids() {
-  renderGrid("accept-grid", ACCEPT_EXPRESSIONS, { tones: true, noIndex: true });
-  renderRefuseFill();
-  renderMeetFill();
-}
-
-/* ---------- 빈칸 채우기: 거절 (Sorry, but I can't. I have a ___.) ---------- */
-let fillReason = null;
-let fillPlace = null;
-let fillTime = null;
-let lastFillSpoken = "";
-
-function fillActions(wrap, en, ko, emoji, type) {
-  wrap.innerHTML = "";
-  if (!en) return;
-  const listenBtn = document.createElement("button");
-  listenBtn.className = "btn primary";
-  listenBtn.textContent = "🔊 문장 듣기";
-  listenBtn.addEventListener("click", () => speak(en));
-  wrap.append(listenBtn);
-  if (en !== lastFillSpoken) { lastFillSpoken = en; speak(en); }
-}
-
-function renderRefuseFill() {
-  const row = document.getElementById("refuse-chips");
-  row.innerHTML = "";
-  REFUSE_REASONS.forEach(r => {
-    row.appendChild(makeChip(`${r.emoji} ${r.en}`, "where", fillReason === r, () => {
-      fillReason = r; renderRefuseFill();
-    }));
-  });
-  const blank = document.getElementById("refuse-blank");
-  const koEl = document.getElementById("refuse-ko");
-  blank.classList.toggle("filled", !!fillReason);
-  if (fillReason) {
-    blank.innerHTML = ""; blank.appendChild(buildWords(fillReason.en));
-    koEl.textContent = `미안하지만 못 가. 나 ${fillReason.ko}(이)가 있어.`;
-    fillActions(document.getElementById("refuse-actions"),
-      `Sorry, but I can't. I have a ${fillReason.en}.`, koEl.textContent, fillReason.emoji, "answer");
-  } else {
-    blank.textContent = "________";
-    koEl.textContent = "미안하지만 못 가. 나 ________(이)가 있어.";
-    fillActions(document.getElementById("refuse-actions"), null);
-  }
-}
-
-/* ---------- 빈칸 채우기: 약속 (Please come to ___ at ___.) ---------- */
-function renderMeetFill() {
-  const pRow = document.getElementById("meet-place-chips");
-  const tRow = document.getElementById("meet-time-chips");
-  pRow.innerHTML = ""; tRow.innerHTML = "";
-  PLACE_EXPRESSIONS.forEach(p => {
-    pRow.appendChild(makeChip(`${p.emoji} ${p.en}`, "place", fillPlace === p, () => {
-      fillPlace = p; renderMeetFill();
-    }));
-  });
-  TIME_EXPRESSIONS.forEach(t => {
-    tRow.appendChild(makeChip(`${t.emoji} ${t.en}`, "with", fillTime === t, () => {
-      fillTime = t; renderMeetFill();
-    }));
-  });
-  const pb = document.getElementById("meet-place-blank");
-  const tb = document.getElementById("meet-time-blank");
-  pb.classList.toggle("filled", !!fillPlace);
-  tb.classList.toggle("filled", !!fillTime);
-  if (fillPlace) { pb.innerHTML = ""; pb.appendChild(buildWords(fillPlace.en)); } else pb.textContent = "________";
-  if (fillTime) { tb.innerHTML = ""; tb.appendChild(buildWords(fillTime.en)); } else tb.textContent = "________";
-  const koEl = document.getElementById("meet-ko");
-  koEl.textContent = `${fillTime ? fillTime.ko : "________"}에 ${fillPlace ? fillPlace.ko : "________"}(으)로 와 줘.`;
-  if (fillPlace && fillTime) {
-    fillActions(document.getElementById("meet-actions"),
-      `Please come to ${fillPlace.en} at ${fillTime.en}.`, koEl.textContent, fillPlace.emoji, "meet");
-  } else {
-    fillActions(document.getElementById("meet-actions"), null);
-  }
-}
-
-
 /* ---------- 초기 렌더 ---------- */
-renderSuggestions();
-renderAnswerGrids();
+renderSubjects();
+renderSkills();
+renderGoodFill();
+renderTalkFill();
 renderBuilder();
 updateSetPreview();
-renderSheetSummary();
 
 /* ---------- 탭 전환 ---------- */
 document.querySelectorAll(".tab-btn").forEach(btn => {
